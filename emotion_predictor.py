@@ -3,6 +3,8 @@ import pickle
 import re
 
 import pandas as pd
+import os
+os.environ['KERAS_BACKEND'] = 'theano'
 from keras import backend as K
 from keras.models import load_model
 from keras.preprocessing import sequence
@@ -68,11 +70,11 @@ class EmotionPredictor:
         elif self.classification in ['ekman', 'plutchik']:
             return 141
 
-    def predict_classes(self, tweets):
-        indices = self._tweet_to_indices(tweets)
+    def predict_classes(self, reviews):
+        indices = self._review_to_indices(reviews)
         predictions = self.model.predict(indices, verbose=False)
 
-        df = pd.DataFrame({'Tweet': tweets})
+        df = pd.DataFrame({'Review': reviews})
         if self.setting == 'mc':
             df['Emotion'] = [self.class_values[i] for i in
                         predictions.argmax(axis=-1)]
@@ -81,33 +83,36 @@ class EmotionPredictor:
             predictions[predictions < 0.5] = 0
             for emotion, values in zip(self.class_values, predictions.T):
                 df[emotion] = values
+        df.to_csv('data\predictions.csv', encoding='utf-8', index=False)
         return df
 
-    def predict_probabilities(self, tweets):
-        indices = self._tweet_to_indices(tweets)
+    def predict_probabilities(self, reviews):
+        indices = self._review_to_indices(reviews)
         predictions = self.model.predict(indices, verbose=False)
 
-        df = pd.DataFrame({'Tweet': tweets})
+        df = pd.DataFrame({'Review': reviews})
         for emotion, values in zip(self.class_values, predictions.T):
             df[emotion] = values
+        df.to_csv('data\probabilities.csv', encoding='utf-8', index=False)
         return df
 
-    def embed(self, tweets):
-        indices = self._tweet_to_indices(tweets)
+    def embed(self, reviews):
+        indices = self._review_to_indices(reviews)
         embeddings = self.embeddings_model(indices)
 
-        df = pd.DataFrame({'Tweet': tweets})
+        df = pd.DataFrame({'Review': reviews})
         for index, values in enumerate(embeddings.T, start=1):
             df['Dim{}'.format(index)] = values
+        df.to_csv('data\embeddings.csv', encoding='utf-8', index=False)
         return df
 
-    def embedd(self, tweets):
+    def embedd(self, reviews):
         """ Here only for backwards compatibility. """
-        return self.embed(tweets)
+        return self.embed(reviews)
 
-    def _tweet_to_indices(self, tweets):
+    def _review_to_indices(self, reviews):
         indices = []
-        for t in tweets:
+        for t in reviews:
             t = html.unescape(t)                            # unescape HTML
             t = re.sub(r"http\S+", "", t)                   # remove normal URLS
             t = re.sub(r"pic\.twitter\.com/\S+", "", t)     # remove pic.twitter.com URLS
